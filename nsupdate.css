@@ -1,0 +1,15 @@
+tr.head{ background-color: #1078E1;
+	 color: white;
+}
+
+#problems{background-color: #FFFF66;
+border-style:dashed;
+border-width:thin;
+border-color:red;
+margin: 20px;
+padding: 20px;
+}
+
+#maintable, td{
+    border: 1px solid gray;
+}
