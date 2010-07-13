@@ -71,43 +71,57 @@ my $problem='';
 my $res = Net::DNS::Resolver->new;
 my @zone = $res->axfr($ptr);
 
+if(param('a') eq 'del' or param('a') eq 'add'){
+    print 
+	redirect(-uri=>url(),
+		 -charset=>$charset),
+	start_html(-title=>$pagename,
+		   -encoding=>$charset,
+		   -style=>{'src'=>$css});
+
+    print h1($pagename),a({-href=>url(),-id=>'refresh'},$txtrefresh);
+
+    if(param('a') eq 'add'){
+	print h2($txtadd);
+	my $command ='';
+	$command .= 'update add '.param('name').' '.param('ttl').' '.param('class').' '.param('type').' '.param('data')."\n";
+	$command .= "show\n";
+	$command .= "send\n";
+	$command .= "quit\n";
+	if($rndc_key){
+	    print '<pre id="nsushow">'.`echo -n \"$command\" | nsupdate -k /etc/bind/rndc.key`.'</pre>';
+	}
+	else{
+	    print '<pre id="nsushow">'.`echo -n \"$command\" | nsupdate`.'</pre>';
+	}
+    }
+    elsif(param('a') eq 'del'){
+	print h2($txtdel);
+	my $command ='';
+	$command .= 'update delete '.param('name').' '.param('type')."\n";
+	$command .= "show\n";
+	$command .= "send\n";
+	$command .= "quit\n";
+	if($rndc_key){
+	    print '<pre id="nsushow">'.`echo -n \"$command\" | nsupdate -k /etc/bind/rndc.key`.'</pre>';
+	}
+	else{
+	    print '<pre id="nsushow">'.`echo -n \"$command\" | nsupdate`.'</pre>';
+	}
+    }
+    Delete_all();
+    print end_html();
+    return;
+}
+
 print 
     header(-charset=>$charset),
     start_html(-title=>$pagename,
 	       -encoding=>$charset,
 	       -style=>{'src'=>$css});
 
-print h1($pagename),a({-href=>url(),-id=>'refresh'},$txtrefresh);
-if(param('a') eq 'add'){
-    print h2($txtadd);
-    my $command ='';
-    $command .= 'update add '.param('name').' '.param('ttl').' '.param('class').' '.param('type').' '.param('data')."\n";
-    $command .= "show\n";
-    $command .= "send\n";
-    $command .= "quit\n";
-    if($rndc_key){
-	print '<pre id="nsushow">'.`echo -n \"$command\" | nsupdate -k /etc/bind/rndc.key`.'</pre>';
-    }
-    else{
-	print '<pre id="nsushow">'.`echo -n \"$command\" | nsupdate`.'</pre>';
-    }
-}
-elsif(param('a') eq 'del'){
-    print h2($txtdel);
-    my $command ='';
-    $command .= 'update delete '.param('name').' '.param('type')."\n";
-    $command .= "show\n";
-    $command .= "send\n";
-    $command .= "quit\n";
-    if($rndc_key){
-	print '<pre id="nsushow">'.`echo -n \"$command\" | nsupdate -k /etc/bind/rndc.key`.'</pre>';
-    }
-    else{
-	print '<pre id="nsushow">'.`echo -n \"$command\" | nsupdate`.'</pre>';
-    }
-}
 Delete_all();
-
+print h1($pagename),a({-href=>url(),-id=>'refresh'},$txtrefresh);
 print start_multipart_form(),
     start_table({-id=>'addtable'}),caption($txtaddtable),
     Tr([
@@ -225,27 +239,36 @@ print end_html();
 
 sub inssort {
     my ($by, $ip, @val) = @_;
-    if($#sorted eq -1){
+    if($#sorted == -1){
 	push @sorted, $by;
 	push @vals, [\@val];
 	push @ips, $ip;
+	return;
     }
     else{
 	for my $pos ( 0 .. $#sorted ) {
-	    if ( $sorted[$pos] < $by and ($pos+1) > $#sorted ){
+	    if ( $by > $sorted[$pos] and $pos == $#sorted ){
 		push @sorted, $by;
 		push @vals, [\@val];
 		push @ips, $ip;
 		return;
 	    }
-	    elsif ( ($pos == 0 and $by < $sorted[0]) or ($sorted[$pos] < $by and ($pos+1) < $#sorted and $sorted[$pos+1] > $by)) {
+	    elsif( $by == $sorted[$pos] ){
+		push @{$vals[$pos]}, \@val;
+		return;
+	    }
+	    elsif ( $by > $sorted[$pos] and
+		    ($pos+1) <= $#sorted and
+		    $by < $sorted[$pos+1] ) {
 		splice @sorted, $pos+1, 0, $by;
 		splice @vals, $pos+1, 0, [\@val];
 		splice @ips, $pos+1, 0, $ip;
 		return;
 	    }
-	    elsif( $sorted[$pos] == $by ){
-		push @{$vals[$pos]}, \@val;
+	    elsif( $pos == 0 and $by < $sorted[0] ){
+		splice @sorted, 0, 0, $by;
+		splice @vals, 0, 0, [\@val];
+		splice @ips, 0, 0, $ip;
 		return;
 	    }
 	}
